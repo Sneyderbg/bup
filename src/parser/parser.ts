@@ -1,114 +1,43 @@
 import { Queue } from "queue-typescript";
+import { Item } from "./item";
+import {
+  flat2Gramm,
+  G1,
+  gramm2Flat,
+  type FlatGrammar,
+  type Grammar,
+} from "./gramms";
 
-export type Grammar = Record<string, string[]>;
-
-export const GRAMMAR = {
-  E: ["T", "E+T"],
-  T: ["F", "T*F"],
-  F: ["I", "N", "(E)"],
-  I: ["L", "LI"],
-  N: ["D", "DN"],
-  L: ["a", "b"],
-  D: ["0", "1"],
-} satisfies Grammar;
-
-const G1 = {
-  E: ["T", "E+T"],
-  T: ["F", "T*F"],
-  F: ["i", "(E)"],
-};
-// const G0 = {
-//   V: ["aW"],
-//   W: ["bbW", "c"],
-// };
-
-class Item {
-  next?: number;
-  l: string;
-  r: string;
-  closurePos: number;
-
-  constructor(l: string, r: string, closurePos: number) {
-    this.l = l;
-    this.r = r;
-    this.closurePos = Math.max(0, Math.min(closurePos, r.length));
-  }
-
-  copy() {
-    const c = new Item(this.l, this.r, this.closurePos);
-    c.next = this.next;
-    return c;
-  }
-
-  withNext(next: number) {
-    this.next = next;
-    return this;
-  }
-
-  getType(): "item" | "reduction" {
-    if (this.closurePos == this.r.length) return "reduction";
-    return "item";
-  }
-
-  prevSymbol() {
-    if (this.closurePos > 0) return this.r[this.closurePos - 1];
-  }
-
-  nextSymbol() {
-    if (this.closurePos < this.r.length) return this.r[this.closurePos];
-  }
-
-  stringRead() {
-    if (this.closurePos === 0) {
-      return this.l;
-    }
-    return this.r.slice(0, this.closurePos);
-  }
-
-  toString() {
-    let prefix = "ni";
-    if (this.getType() === "reduction") {
-      prefix = `R${this.next ?? ""}`;
-    } else if (this.next !== undefined) {
-      prefix = `I${this.next}`;
-    }
-    return `${prefix}: ${this.l} -> ${this.r.slice(0, this.closurePos)}.${this.r.slice(this.closurePos)}`;
-  }
-
-  moveClosure(dir: "left" | "right" = "right") {
-    return new Item(
-      this.l,
-      this.r,
-      this.closurePos + (dir == "right" ? 1 : -1),
-    );
-  }
-
-  equals(other: Item) {
-    return (
-      this.l === other.l &&
-      this.r === other.r &&
-      this.closurePos === other.closurePos
-    );
-  }
-
-  equalSymsRead(other: Item) {
-    return this.r.slice(0, this.closurePos) === other.r.slice(other.closurePos);
-  }
-}
+export type ParsingStep = { stack: string; input: string; action: string };
 
 export class LR0<T extends Grammar> {
-  grammar: { S: string[] } & T;
+  augmentedS: { symbol: string; prod: string };
+  grammar: T;
+  flatGrammar: FlatGrammar;
   terms: string[]; // terminals, auto infered if not passed
-  // firsts: T;
-  // nexts: T;
-  table: any;
+  table;
 
   constructor(grammar: T, terms?: string[]) {
-    this.grammar = { S: [Object.keys(grammar)[0]], ...grammar };
+    this.grammar = grammar;
+    let augmentedSSymbol = "A";
+    while (augmentedSSymbol in grammar) {
+      augmentedSSymbol = String.fromCharCode(
+        augmentedSSymbol.charCodeAt(0) + 1,
+      );
+    }
+    this.augmentedS = {
+      symbol: augmentedSSymbol,
+      prod: Object.keys(grammar)[0],
+    };
+    this.flatGrammar = gramm2Flat(grammar);
     this.terms = terms ?? this.getTerms();
-    // this.firsts = this.getFirsts();
-    // this.nexts = this.getNexts();
     this.table = this.getTable();
+  }
+
+  static fromFlatGrammar<G extends FlatGrammar>(flatGramm: G) {
+    const gramm = flat2Gramm(flatGramm);
+
+    return new this(gramm);
   }
 
   isTerm(w: string): boolean {
@@ -272,7 +201,7 @@ export class LR0<T extends Grammar> {
 
       for (const item of items) {
         if (item.getType() === "reduction") {
-          if (this.isInitial(item.l)) {
+          if (this.isInitial(item.r)) {
             row["$"] = "acc";
           } else {
             const prevSym = item.prevSymbol();
@@ -282,7 +211,8 @@ export class LR0<T extends Grammar> {
                 if (row[term] && row[term].length > 0) {
                   throw new Error(`${term} already assigned`);
                 }
-                row[term] = `R(${item.r} -> ${item.l})`;
+                row[term] =
+                  `R${this.flatGrammar.findIndex((o) => o.symbol === item.l && o.prod === item.r)}`;
               }
             } else {
               throw new Error(`no prevSymbol for ${item.toString()}`);
@@ -342,10 +272,14 @@ export class LR0<T extends Grammar> {
 
   getCanonical2() {
     const symbols = Object.keys(this.grammar);
-    const initialItem = new Item(symbols[0], symbols[1], 0);
+    const initialItem = new Item(
+      this.augmentedS.symbol,
+      this.augmentedS.prod,
+      0,
+    );
     const can = [
       {
-        read: symbols[0],
+        read: this.augmentedS.symbol,
         items: this.closure([initialItem]),
       },
     ];
@@ -353,7 +287,7 @@ export class LR0<T extends Grammar> {
 
     for (let i = 0; i < can.length; i++) {
       const { items } = can[i];
-      for (const sym of [...symbols.slice(1), ...this.terms]) {
+      for (const sym of [...symbols, ...this.terms]) {
         const gotoI = this.goto(items, sym);
         if (
           gotoI.length > 0 &&
@@ -382,95 +316,11 @@ export class LR0<T extends Grammar> {
       }
     }
 
-    can.forEach(({ read, items }, idx) => {
-      console.log(`I${idx}: ${read}`);
-      items.forEach((i) => console.log(`  ${i.toString()}`));
-    });
+    // can.forEach(({ read, items }, idx) => {
+    //   console.log(`I${idx}: ${read}`);
+    //   items.forEach((i) => console.log(`  ${i.toString()}`));
+    // });
     return can;
-  }
-
-  getCanonical() {
-    const symbols = Object.keys(this.grammar);
-    const augmSym0 = symbols[0];
-    const sym0 = symbols[1];
-    const can = {} as Record<string, Item[]>; // key represents the read string in the state
-    let idCounter = 0;
-
-    // I0
-    const initialItem = new Item(augmSym0, sym0, 0);
-    can[augmSym0] = this.closure([initialItem]).map((i) => {
-      i.next = idCounter++;
-      return i;
-    });
-
-    const findItemInCan = (item: Item) => {
-      for (const state in can) {
-        for (const i of can[state]) {
-          if (i.equals(item)) return i;
-        }
-      }
-    };
-    const processed: Item[] = [];
-    const toProcess = new Queue<Item>(initialItem);
-
-    while (toProcess.length > 0) {
-      const qItem = toProcess.dequeue();
-      const read = qItem.stringRead();
-
-      const canItem = findItemInCan(qItem);
-      if (!canItem) {
-        qItem.next = idCounter++;
-      } else if (canItem.next === undefined) {
-        canItem.next = idCounter++;
-        qItem.next = canItem.next;
-      } else {
-        qItem.next = canItem.next;
-      }
-      if (!can[read]) {
-        can[read] = [];
-      }
-      const state = can[read];
-      for (const item of state) {
-        const nextClosure = item.moveClosure();
-        const alreadyProcessed =
-          processed.findIndex((p) => p.equals(nextClosure)) !== -1;
-        if (!alreadyProcessed) {
-          const clos = this.closure([nextClosure]);
-          const strRead = nextClosure.stringRead();
-          if (can[strRead]) {
-            can[strRead].push(...clos);
-          } else {
-            can[strRead] = clos;
-          }
-
-          clos.forEach((newItem) => toProcess.enqueue(newItem));
-          processed.push(nextClosure);
-        }
-      }
-    }
-
-    Object.entries(can).forEach(([c, itArr]) => {
-      itArr.forEach((i) => {
-        if (i.next === undefined) {
-          throw new Error(
-            `item ${i.toString()} doesn't have an next in '${c}'`,
-          );
-        }
-      });
-    });
-
-    let str = "";
-    Object.keys(can).forEach((c, idx) => {
-      str += `I${idx}: ${c}\n`;
-      can[c].forEach((item) => {
-        str += `  ${item.toString()}\n`;
-      });
-    });
-
-    return {
-      canonicals: can,
-      str,
-    };
   }
 
   print_analysis(): void {
@@ -484,9 +334,63 @@ export class LR0<T extends Grammar> {
 
   parse(str: string) {
     str += "$";
+    const stack = ["$", 0];
+    const steps: ParsingStep[] = [];
+
+    let i = 0;
+    while (i < str.length && stack.length > 0) {
+      const c = str[i];
+      const head = stack[stack.length - 1];
+      let step = {
+        stack: stack.join(""),
+        input: str.slice(i),
+        action: "",
+      };
+
+      if (typeof head === "number") {
+        const action = this.table[head][c];
+        if (!action) {
+          step.action = "err";
+          steps.push(step);
+          break;
+        }
+
+        step.action = action;
+
+        if (action[0] === "S") {
+          stack.push(c, parseInt(action.slice(1)));
+          i++;
+        } else if (action[0] === "R") {
+          const reduction = this.flatGrammar[parseInt(action.slice(1))];
+          const toReplace = [...reduction.prod];
+          let j = toReplace.pop();
+          while (j !== undefined) {
+            const h = stack.pop();
+            if (typeof h === "number") continue;
+            if (h === j) {
+              j = toReplace.pop();
+              continue;
+            }
+            step.action = "err";
+          }
+
+          const lastState = stack[stack.length - 1];
+          if (typeof lastState !== "number") {
+            throw Error(`${stack} ${str} -> lastState is not a number`);
+          } else {
+            const sym = reduction.symbol as string;
+            const nextState = this.table[lastState][sym];
+            stack.push(sym);
+            stack.push(parseInt(nextState));
+          }
+        } else if (action === "acc") {
+          i++;
+        }
+      }
+      steps.push(step);
+    }
+    return steps;
   }
 }
 
 export const lr0 = new LR0(G1);
-// lr0.print_analysis();
-// lr0.parse("i+i*(i*i)");

@@ -1,50 +1,57 @@
-import { createSignal, For } from "solid-js";
+import { createSignal } from "solid-js";
 import "./App.css";
-import { lr0 } from "./parser/parser";
+import { LR0, type ParsingStep } from "./parser/parser";
+import { GrammViewer } from "./components/GrammViewer";
+import { ParsingSteps } from "./components/ParsingSteps";
+import debounce from "debounce";
+import { GRAMMAR, type FlatGrammar, type Grammar } from "./parser/gramms";
+import { Table } from "./components/Table";
 
 function App() {
   const [str, setStr] = createSignal("");
+  const [parsingSteps, setParsingSteps] = createSignal<ParsingStep[]>([]);
+  const [firstParsing, setFirstParsing] = createSignal<boolean | null>(null);
+  const [parser, setParser] = createSignal<LR0<Grammar>>(new LR0(GRAMMAR));
 
-  const rows = lr0.table;
-  const cols = [...lr0.terms, "$", ...Object.keys(lr0.grammar)];
+  const rebuild = debounce((newGramm: FlatGrammar) => {
+    //TODO: catch errors and validate gramm
+    setParser(LR0.fromFlatGrammar(newGramm));
+    console.log("new parser!");
+  }, 1000);
 
   return (
-    <div>
-      <div>
-        <input
-          value={str()}
-          onChange={(e) => setStr(e.target.value)}
-          class="border"
-        />
-        <button onClick={() => alert(str())}>Parse!</button>
+    <div class="flex gap-8">
+      <div class="sticky top-0 self-start flex flex-col gap-8">
+        <GrammViewer rebuildParser={(gramm) => rebuild(gramm)} />
+        <form
+          onSubmit={(e) => {
+            {
+              if (firstParsing() === null) {
+                setFirstParsing(true);
+              } else if (firstParsing()) {
+                setFirstParsing(false);
+              }
+              e.preventDefault();
+              setParsingSteps(parser().parse(str()));
+            }
+          }}
+          class="flex flex-col gap-2 items-center"
+        >
+          <input
+            value={str()}
+            onChange={(e) => {
+              setParsingSteps([]);
+              setStr(e.target.value);
+            }}
+            class="border"
+          />
+          <button type="submit">Parse!</button>
+        </form>
       </div>
-      <div>
-        <table>
-          <thead>
-            <tr>
-              <th>Table LR(0)</th>
-              <For each={cols}>{(n) => <th>{n}</th>}</For>
-            </tr>
-          </thead>
-          <tbody>
-            <For each={rows}>
-              {(row, idx) => (
-                <>
-                  <tr>
-                    <td>{idx()}</td>
-                    <For each={cols}>
-                      {(col) => (
-                        <td class={lr0.isTerm(col) ? "w-32" : "w-8"}>
-                          {row[col]}
-                        </td>
-                      )}
-                    </For>
-                  </tr>
-                </>
-              )}
-            </For>
-          </tbody>
-        </table>
+
+      <div class="flex flex-col items-center gap-8">
+        <Table parser={parser} />
+        <ParsingSteps parsingSteps={parsingSteps} />
       </div>
     </div>
   );

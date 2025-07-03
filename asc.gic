@@ -1,0 +1,147 @@
+S -> E
+E -> T | E+T
+T -> F | F*T
+F -> I | N | (E)
+I -> L | LI
+N -> D | DN
+L -> a | b
+D -> 0 | 1
+
+I0:
+  I1:  S -> .E
+  I2:  E -> .T
+  I3:  E -> .E+T
+  I4:  T -> .F
+  I5:  T -> .F*T
+  I6:  F -> .I
+  I7:  F -> .N
+  I8:  F -> .(E)
+  I9:  I -> .L
+  I10: I -> .LI
+  I11: N -> .D
+  I12: N -> .LN
+  I13: L -> .a
+  I14: L -> .b
+  I15: D -> .0
+  I16: D -> .1
+
+I1:
+  acc: S -> E.$
+
+I2:
+  R: E -> T.
+
+I3:
+  I17: E -> E.+T
+
+I4:
+  R: T -> F.
+
+I5:
+  I18: T -> F.*T
+
+I6:
+  R: F -> I.
+
+I7: 
+  R: F -> N.
+
+I8:
+  I19: F -> (.E)
+  I2:  E -> .T
+  I3:  E -> .E+T
+  I4:  T -> .F
+  I5:  T -> .F*T
+  I6:  F -> .I
+  I7:  F -> .N
+  I8:  F -> .(E)
+  I9:  I -> .L
+  I10:  I -> .LI
+  I11: N -> .D
+  I12: N -> .LN
+  I13: L -> .a
+  I14: L -> .b
+  I15: D -> .0
+  I16: D -> .1
+
+I9:
+  R: I -> L.
+
+I10:
+  I20: I -> L.I
+  I9:  I -> .L
+  I10:  I -> .LI
+  I13: L -> .a
+  I14: L -> .b
+
+I11:
+  R: N -> D.
+
+I12:
+  I21: N -> D.N
+  I11: N -> .D
+  I12: N -> .DN
+  I15: D -> .0
+  I16: D -> .1
+
+I13:
+  R: L -> a.
+
+I14:
+  R: L -> b.
+
+I15:
+  R: D -> 0.
+
+I16:
+  R: D -> 1.
+
+I17:
+  I22: E -> E+.T
+  I4:  T -> .F
+  I5:  T -> .F*T
+  I6:  F -> .I
+  I7:  F -> .N
+  I8:  F -> .(E)
+  I9:  I -> .L
+  I10:  I -> .LI
+  I11: N -> .D
+  I12: N -> .LN
+  I13: L -> .a
+  I14: L -> .b
+  I15: D -> .0
+  I16: D -> .1
+
+I18:
+  I23: T -> F*.T
+  I4:  T -> .F
+  I5:  T -> .F*T
+  I6:  F -> .I
+  I7:  F -> .N
+  I8:  F -> .(E)
+  I9:  I -> .L
+  I10:  I -> .LI
+  I11: N -> .D
+  I12: N -> .LN
+  I13: L -> .a
+  I14: L -> .b
+  I15: D -> .0
+  I16: D -> .1
+
+I19:
+  I24: F -> (E.)
+
+I20:
+  R: I -> LI.
+
+I21:
+  R: N -> LN.
+
+I22:
+  R: E -> E+T.
+
+I23:
+  R: T -> F*T.
+
+I24:
+  R: F -> (E).

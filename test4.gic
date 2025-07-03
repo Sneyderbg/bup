@@ -1,0 +1,76 @@
+I0: S
+  I1: S -> .E
+  I1: E -> .E+T
+  I2: E -> .T
+  I2: T -> .T*F
+  I3: T -> .F
+  I4: F -> .i
+  I5: F -> .(E)
+I1: E
+  R: S -> E.
+  I6: E -> E.+T
+I2: T
+  R: E -> T.
+  I7: T -> T.*F
+I3: F
+  R: T -> F.
+I4: i
+  R: F -> i.
+I5: (
+  I8: F -> (.E)
+  I8: E -> .E+T
+  I2: E -> .T
+  I2: T -> .T*F
+  I3: T -> .F
+  I4: F -> .i
+  I5: F -> .(E)
+I6: E+
+  I9: E -> E+.T
+  I3: T -> .F
+  I9: T -> .T*F
+  I4: F -> .i
+  I5: F -> .(E)
+I7: T*
+  I10: T -> T*.F
+  I4: F -> .i
+  I5: F -> .(E)
+I8: (E
+  I11: F -> (E.)
+  I6: E -> E.+T
+I9: E+T
+  R: E -> E+T.
+  I7: T -> T.*F
+I10: T*F
+  R: T -> T*F.
+I11: (E)
+  R: F -> (E).
+
+E -> E+T -> T+T*F -> F+F*(E) -> i+i*(E+T) -> i+i*(T+F) -> i+i*(F+i) -> i+i*(i+i)
+
+stack                 str            action
+$0                    i+i*(i+i)$     s4
+$0i4                  +i*(i+i)$
+$0F                   +i*(i+i)$
+$0F3                  +i*(i+i)$
+$0T                   +i*(i+i)$
+$0T2                  +i*(i+i)$
+$0E1                  +i*(i+i)$
+$0E1+6                i*(i+i)$
+$0E1+6i4              *(i+i)$
+$0E1+6F3              *(i+i)$
+$0E1+6T2              *(i+i)$
+$0E1+6T2*7            (i+i)$
+$0E1+6T2*7(5          i+i)$
+$0E1+6T2*7(5i4        +i)$
+$0E1+6T2*7(5F3        +i)$
+$0E1+6T2*7(5T2        +i)$
+$0E1+6T2*7(5E8        +i)$
+$0E1+6T2*7(5E8+6      i)$
+$0E1+6T2*7(5E8+6i4    )$
+$0E1+6T2*7(5E8+6F3    )$
+$0E1+6T2*7(5E8+6T9    )$
+$0E1+6T2*7(5E8)11     $
+$0E1+6T2*7F10         $
+$0E1+6T9              $
+$0E1                  $              acc
+
