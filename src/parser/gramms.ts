@@ -8,7 +8,7 @@ export const GRAMMAR = {
   F: ["N", "(E)"],
   I: ["L", "LI"],
   N: ["D", "DN"],
-  L: ["v", "a", "r"],
+  L: ["id", "a", "r"],
   D: new Array(10).fill(null).map((_, idx) => idx.toString()),
 } satisfies Grammar;
 

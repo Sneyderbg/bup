@@ -36,9 +36,14 @@ function App() {
               setParsingSteps([]);
               setStr(e.target.value);
             }}
-            class="!border-gray-400"
+            class="!border-gray-400 rounded-sm hover:bg-gray-400/20 px-1 py-0.5 focus:!border-blue-400"
           />
-          <button type="submit">Parse!</button>
+          <button
+            class="px-4 py-2 rounded-md border-2 border-gray-600 bg-gray-800 hover:bg-blue-900 font-bold transition-colors ease-out duration-200"
+            type="submit"
+          >
+            Parse!
+          </button>
         </form>
       </div>
 

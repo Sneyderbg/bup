@@ -1,4 +1,10 @@
-import { createEffect, createSignal, Index, type Setter } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  Index,
+  onMount,
+  type Setter,
+} from "solid-js";
 import {
   gramm2Flat,
   GRAMMAR,
@@ -24,7 +30,7 @@ export function GrammViewer({
     msg: string;
     el?: HTMLElement;
     show: boolean;
-  }>({ prodIdx: -1, msg: "aaaaaaaa", show: false });
+  }>({ prodIdx: -1, msg: "No error", show: false });
   let prodRefs: Array<HTMLElement> = [];
 
   const rebuildParser = debounce(() => {
@@ -32,6 +38,7 @@ export function GrammViewer({
       const newParser = LR0.fromFlatGrammar(flatGramm());
       updateParser(newParser);
       setError((prev) => ({ ...prev, show: false }));
+      saveGrammar(flatGramm());
     } catch (err) {
       if (err instanceof ValidationError) {
         const lastError = {
@@ -47,7 +54,7 @@ export function GrammViewer({
     }
   }, 1000);
 
-  const handleChange = (
+  const updateProd = (
     e: InputEvent & { target: HTMLInputElement },
     i: number,
   ) => {
@@ -65,15 +72,38 @@ export function GrammViewer({
     });
   };
 
+  const loadGrammar = () => {
+    const grammStr = localStorage.getItem("grammar");
+    if (!grammStr) return null;
+    return JSON.parse(grammStr) as FlatGrammar;
+  };
+
+  const saveGrammar = (gramm: FlatGrammar) => {
+    localStorage.setItem("grammar", JSON.stringify(gramm));
+  };
+
   createEffect(() => {
     if (flatGramm().length > 0) {
       rebuildParser();
     }
   });
 
+  onMount(() => {
+    const gramm = loadGrammar();
+    if (gramm) setFlatGramm(gramm);
+  });
+
   return (
     <div class="flex flex-col h-4/5 overflow-x-visible">
-      <h1>Grammar</h1>
+      <div class="group relative">
+        <h1 class="inline-block">Grammar</h1>
+        <button
+          class="absolute bottom-0 right-0 p-1 text-xs hover:text-blue-400 transition-all duration-200 opacity-40 group-hover:opacity-100 active:scale-80"
+          onClick={() => setFlatGramm(gramm2Flat(GRAMMAR))}
+        >
+          Reset
+        </button>
+      </div>
       <div class="box-border grid grid-cols-[.2fr_1.8fr] px-3 py-2 gap-1 h-auto font-bold overflow-y-auto overflow-x-hidden thin-scrollbar">
         <Index each={flatGramm()}>
           {(item, idx) => {
@@ -95,7 +125,7 @@ export function GrammViewer({
                   <input
                     data-prod-idx={idx.toString()}
                     value={`${item().symbol.toString()} \u{2192} ${item().prod}`}
-                    onInput={(e) => handleChange(e, idx)}
+                    onInput={(e) => updateProd(e, idx)}
                     class="rounded-sm py-1 px-2"
                     style={{ "background-color": color }}
                   />
@@ -109,7 +139,10 @@ export function GrammViewer({
                       })
                     }
                   >
-                    <Icon icon="material-symbols:remove" />
+                    <Icon
+                      class="active:scale-75 transition-all duration-200"
+                      icon="material-symbols:remove"
+                    />
                   </button>
                 </div>
               </>

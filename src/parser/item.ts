@@ -1,17 +1,17 @@
 export class Item {
   next?: number;
   l: string;
-  r: string;
+  r: string[];
   closurePos: number;
 
-  constructor(l: string, r: string, closurePos: number) {
+  constructor(l: string, r: string[], closurePos: number) {
     this.l = l;
     this.r = r;
     this.closurePos = Math.max(0, Math.min(closurePos, r.length));
   }
 
   copy() {
-    const c = new Item(this.l, this.r, this.closurePos);
+    const c = new Item(this.l, [...this.r], this.closurePos);
     c.next = this.next;
     return c;
   }
@@ -38,7 +38,7 @@ export class Item {
     if (this.closurePos === 0) {
       return this.l;
     }
-    return this.r.slice(0, this.closurePos);
+    return this.r.slice(0, this.closurePos).join("");
   }
 
   toString() {
@@ -48,7 +48,7 @@ export class Item {
     } else if (this.next !== undefined) {
       prefix = `I${this.next}`;
     }
-    return `${prefix}: ${this.l} -> ${this.r.slice(0, this.closurePos)}.${this.r.slice(this.closurePos)}`;
+    return `${prefix}: ${this.l} -> ${this.r.slice(0, this.closurePos).join("")}.${this.r.slice(this.closurePos).join("")}`;
   }
 
   moveClosure(dir: "left" | "right" = "right") {
@@ -62,8 +62,9 @@ export class Item {
   equals(other: Item) {
     return (
       this.l === other.l &&
-      this.r === other.r &&
-      this.closurePos === other.closurePos
+      this.closurePos === other.closurePos &&
+      this.r.length === other.r.length &&
+      this.r.every((t, idx) => t === other.r[idx])
     );
   }
 
