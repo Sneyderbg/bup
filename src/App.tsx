@@ -3,8 +3,7 @@ import "./App.css";
 import { LR0, type ParsingStep } from "./parser/parser";
 import { GrammViewer } from "./components/GrammViewer";
 import { ParsingSteps } from "./components/ParsingSteps";
-import debounce from "debounce";
-import { GRAMMAR, type FlatGrammar, type Grammar } from "./parser/gramms";
+import { GRAMMAR, type Grammar } from "./parser/gramms";
 import { Table } from "./components/Table";
 
 function App() {
@@ -13,16 +12,10 @@ function App() {
   const [firstParsing, setFirstParsing] = createSignal<boolean | null>(null);
   const [parser, setParser] = createSignal<LR0<Grammar>>(new LR0(GRAMMAR));
 
-  const rebuild = debounce((newGramm: FlatGrammar) => {
-    //TODO: catch errors and validate gramm
-    setParser(LR0.fromFlatGrammar(newGramm));
-    console.log("new parser!");
-  }, 1000);
-
   return (
     <div class="flex gap-8">
-      <div class="sticky top-0 self-start flex flex-col gap-8">
-        <GrammViewer rebuildParser={(gramm) => rebuild(gramm)} />
+      <div class="sticky top-0 h-dvh self-start flex flex-col gap-8">
+        <GrammViewer updateParser={setParser} />
         <form
           onSubmit={(e) => {
             {
@@ -43,7 +36,7 @@ function App() {
               setParsingSteps([]);
               setStr(e.target.value);
             }}
-            class="border"
+            class="!border-gray-400"
           />
           <button type="submit">Parse!</button>
         </form>

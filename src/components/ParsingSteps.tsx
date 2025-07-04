@@ -23,7 +23,8 @@ export function ParsingSteps({
               x: "20%",
             }}
           >
-            <table>
+            <h1>Parsing</h1>
+            <table class="m-2">
               <thead>
                 <tr>
                   <th class="px-4 py-1">#</th>

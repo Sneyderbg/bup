@@ -2,13 +2,14 @@ export type Grammar = Record<string, string[]>;
 export type FlatGrammar = { symbol: string; prod: string }[];
 
 export const GRAMMAR = {
-  E: ["T", "E+T"],
-  T: ["F", "T*F"],
-  F: ["I", "N", "(E)"],
+  A: ["I=E"],
+  E: ["T", "E+T", "E-T"],
+  T: ["F", "T*F", "T/F"],
+  F: ["N", "(E)"],
   I: ["L", "LI"],
   N: ["D", "DN"],
-  L: ["a", "b"],
-  D: ["0", "1"],
+  L: ["v", "a", "r"],
+  D: new Array(10).fill(null).map((_, idx) => idx.toString()),
 } satisfies Grammar;
 
 export const G1 = {

@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@motionone/dom": "^10.18.0",
     "@tailwindcss/vite": "^4.1.11",
     "debounce": "^2.2.0",
     "queue-typescript": "^1.0.1",

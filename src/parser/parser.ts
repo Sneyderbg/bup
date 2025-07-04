@@ -2,7 +2,6 @@ import { Queue } from "queue-typescript";
 import { Item } from "./item";
 import {
   flat2Gramm,
-  G1,
   gramm2Flat,
   type FlatGrammar,
   type Grammar,
@@ -15,29 +14,62 @@ export class LR0<T extends Grammar> {
   grammar: T;
   flatGrammar: FlatGrammar;
   terms: string[]; // terminals, auto infered if not passed
+  nonTerms: string[];
   table;
 
   constructor(grammar: T, terms?: string[]) {
     this.grammar = grammar;
-    let augmentedSSymbol = "A";
-    while (augmentedSSymbol in grammar) {
-      augmentedSSymbol = String.fromCharCode(
-        augmentedSSymbol.charCodeAt(0) + 1,
-      );
-    }
-    this.augmentedS = {
-      symbol: augmentedSSymbol,
-      prod: Object.keys(grammar)[0],
-    };
     this.flatGrammar = gramm2Flat(grammar);
     this.terms = terms ?? this.getTerms();
+    this.nonTerms = Object.keys(grammar);
+    this.augmentedS = this.getAugmentedS();
+    this.checkGrammar();
+
     this.table = this.getTable();
   }
 
   static fromFlatGrammar<G extends FlatGrammar>(flatGramm: G) {
     const gramm = flat2Gramm(flatGramm);
-
     return new this(gramm);
+  }
+
+  private getAugmentedS() {
+    let augmentedSSymbol = "A";
+    while (augmentedSSymbol in this.grammar) {
+      augmentedSSymbol = String.fromCharCode(
+        augmentedSSymbol.charCodeAt(0) + 1,
+      );
+    }
+    return {
+      symbol: augmentedSSymbol,
+      prod: Object.keys(this.grammar)[0],
+    };
+  }
+
+  checkGrammar() {
+    this.flatGrammar.forEach(({ prod }, idx) => {
+      for (const token of this.splitTokens(prod, false)) {
+        if (this.isTerm(token)) {
+          if (this.terms.findIndex((t) => t === token) === -1) {
+            throw new ValidationError(
+              "missingTerm",
+              idx,
+              token,
+              prod.indexOf(token),
+            );
+          }
+        } else {
+          if (this.nonTerms.findIndex((nt) => nt === token) === -1) {
+            throw new ValidationError(
+              "missingNonTerm",
+              idx,
+              token,
+              prod.indexOf(token),
+            );
+          }
+        }
+      }
+    });
   }
 
   isTerm(w: string): boolean {
@@ -64,7 +96,7 @@ export class LR0<T extends Grammar> {
         }
       }
     }
-    return terms;
+    return [...terms, "$"];
   }
 
   getTerm(w: string): string {
@@ -194,7 +226,7 @@ export class LR0<T extends Grammar> {
   getTable() {
     const table: Record<string, string>[] = []; // rows
 
-    const canonicals = this.getCanonical2();
+    const canonicals = this.getCanonical();
 
     canonicals.map(({ items }) => {
       const row: Record<string, string> = {};
@@ -209,10 +241,11 @@ export class LR0<T extends Grammar> {
             if (prevSym) {
               for (const term of this.nextOf(prevSym)) {
                 if (row[term] && row[term].length > 0) {
-                  throw new Error(`${term} already assigned`);
+                  // throw new Error(`${term} already assigned`);
+                } else {
+                  row[term] =
+                    `R${this.flatGrammar.findIndex((o) => o.symbol === item.l && o.prod === item.r)}`;
                 }
-                row[term] =
-                  `R${this.flatGrammar.findIndex((o) => o.symbol === item.l && o.prod === item.r)}`;
               }
             } else {
               throw new Error(`no prevSymbol for ${item.toString()}`);
@@ -220,6 +253,8 @@ export class LR0<T extends Grammar> {
           }
         } else {
           const next = item.nextSymbol();
+          if (item.next === undefined) console.error(item);
+
           if (next) {
             if (this.isTerm(next)) {
               row[next] = `S${item.next}`;
@@ -270,8 +305,7 @@ export class LR0<T extends Grammar> {
     return this.closure(gotoI);
   }
 
-  getCanonical2() {
-    const symbols = Object.keys(this.grammar);
+  getCanonical() {
     const initialItem = new Item(
       this.augmentedS.symbol,
       this.augmentedS.prod,
@@ -287,7 +321,7 @@ export class LR0<T extends Grammar> {
 
     for (let i = 0; i < can.length; i++) {
       const { items } = can[i];
-      for (const sym of [...symbols, ...this.terms]) {
+      for (const sym of [...this.nonTerms, ...this.terms]) {
         const gotoI = this.goto(items, sym);
         if (
           gotoI.length > 0 &&
@@ -316,20 +350,7 @@ export class LR0<T extends Grammar> {
       }
     }
 
-    // can.forEach(({ read, items }, idx) => {
-    //   console.log(`I${idx}: ${read}`);
-    //   items.forEach((i) => console.log(`  ${i.toString()}`));
-    // });
     return can;
-  }
-
-  print_analysis(): void {
-    // for (const [k, v] of Object.entries(this.firsts)) {
-    //   console.log(`first[${k}] = ${v}`);
-    // }
-    for (const k in this.grammar) {
-      console.log(`next[${k}] = ${this.nextOf(k)}`);
-    }
   }
 
   parse(str: string) {
@@ -393,4 +414,19 @@ export class LR0<T extends Grammar> {
   }
 }
 
-export const lr0 = new LR0(G1);
+export class ValidationError extends Error {
+  cause: { atProdIdx: number; symbol: string; idx: number };
+  type: "missingNonTerm" | "missingTerm";
+
+  constructor(
+    type: "missingNonTerm" | "missingTerm",
+    atProdIdx: number,
+    symbol: string,
+    idx: number,
+  ) {
+    super();
+    this.type = type;
+    this.cause = { atProdIdx, symbol, idx };
+    this.message = `${type === "missingNonTerm" ? "Non-Term" : "Term"} '${this.cause.symbol}' not found in grammar definition`;
+  }
+}
