@@ -37,7 +37,7 @@ export function Table<T extends Grammar>({
             {(row, idx) => (
               <>
                 <tr>
-                  <td class="bg-gray-800">{idx()}</td>
+                  <td class="bg-gray-400 font-bold">{idx()}</td>
                   <For each={cols()}>
                     {(col) => {
                       const value = row[col];
